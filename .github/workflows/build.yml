@@ -1,0 +1,78 @@
+name: Build CR6606 Padavan MT7621+MT7915
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libncurses5-dev libssl-dev \
+            git wget curl unzip bzip2 python3 python2 gawk flex subversion \
+            libelf-dev qemu-utils device-tree-compiler
+
+      - name: Clone Padavan repo
+        run: |
+          git clone --depth=1 
+                  https://github.com/hanwckf/padavan-ng.git
+                   padavan
+          cd padavan
+
+      - name: Write config for CR6606 16M 80MHz Lite
+        run: |
+          cd padavan
+          cat > .config << EOF
+          CONFIG_TARGET_ramips=y
+          CONFIG_TARGET_ramips_mt7621=y
+          CONFIG_TARGET_ramips_mt7621_DEVICE_cr6606=y
+          CONFIG_PACKAGE_kmod-mt7915e=y
+          CONFIG_PACKAGE_kmod-mt76=y
+          CONFIG_PACKAGE_kmod-mt76-core=y
+          CONFIG_PACKAGE_MT7915_DISABLE_160MHZ=y
+          CONFIG_PACKAGE_wpad-basic-openssl=y
+          CONFIG_PACKAGE_iw=y
+          CONFIG_PACKAGE_iwinfo=y
+          CONFIG_PACKAGE_kmod-sfe=y
+          CONFIG_PACKAGE_sfe-common=y
+          CONFIG_PACKAGE_ipv6=y
+          CONFIG_PACKAGE_dnsmasq-full=y
+          CONFIG_PACKAGE_tcp-bbr=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-base=y
+          CONFIG_PACKAGE_luci-mod-admin-full=y
+
+          # 精简关闭
+          CONFIG_PACKAGE_aria2=n
+          CONFIG_PACKAGE_transmission=n
+          CONFIG_PACKAGE_qbittorrent=n
+          CONFIG_PACKAGE_minidlna=n
+          CONFIG_PACKAGE_p910nd=n
+          CONFIG_PACKAGE_usb-printer=n
+          CONFIG_PACKAGE_hd-idle=n
+          CONFIG_PACKAGE_ntfs3=n
+          CONFIG_PACKAGE_ntfs-3g=n
+          CONFIG_PACKAGE_samba4=n
+          CONFIG_PACKAGE_samba36=n
+          CONFIG_PACKAGE_vsftpd=n
+          EOF
+
+      - name: Build firmware
+        run: |
+          cd padavan
+          make defconfig
+          make -j$(nproc)
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr6606-padavan-mt7915-16m-lite
+          path: padavan/output/*.bin
